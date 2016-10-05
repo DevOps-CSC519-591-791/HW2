@@ -1,12 +1,12 @@
 {
-  "name": "test",
-  "version": "0.0.0",
-  "description": "",
+  "name": "DevOps-HW2",
+  "version": "0.0.1",
+  "description": "DevOps-HW2",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Zhewei Hu",
   "license": "ISC",
   "devDependencies": {
     "esprima": "^3.0.0",
