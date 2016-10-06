@@ -7,6 +7,7 @@ var mock = require('mock-fs');
 var _ = require('underscore');
 var Random = require('random-js');
 
+
 function main()
 {
 	var args = process.argv.slice(2);
@@ -17,20 +18,50 @@ function main()
 	}
 	var filePath = args[0];
 
-	constraints(filePath);
+	var operatorArray = [];
+	var operatorObeyArray = [];
+	var operatorObeyArray = [[1, 1, 1, 1],
+							 [0, 1, 1, 1],
+							 [1, 0, 1, 1],
+							 [1, 1, 0, 1],
+							 [1, 1, 1, 0],
+							 [0, 0, 1, 1],
+							 [0, 1, 0, 1],
+							 [0, 1, 1, 0],
+							 [1, 0, 0, 1],
+							 [1, 0, 1, 0],
+							 [1, 1, 0, 0],
+							 [0, 0, 0, 1],
+							 [0, 0, 1, 0],
+							 [0, 1, 0, 0],
+							 [1, 0, 0, 0],
+							 [0, 0, 0, 0]];
 
-	generateTestCases()
-
+	for(var k = 0; k < operatorObeyArray.length; k++){
+		if(k == 0){
+			constraints(filePath, operatorObeyArray[k]);
+			generateTestCases(true);
+			var count = operatorArray.length;
+			var 
+		}
+		else{
+			functionConstraints = {}
+			constraints(filePath, operatorObeyArray[k]);
+			generateTestCases(false);
+		}
+	}
 }
 
 var engine = Random.engines.mt19937().autoSeed();
 
+// ???
 function createConcreteIntegerValue( greaterThan, constraintValue )
 {
 	if( greaterThan )
-		return Random.integer(constraintValue,constraintValue+10)(engine);
+		// Produce an integer within the inclusive range [min, max]
+		return Random.integer(constraintValue, constraintValue + 10)(engine);
 	else
-		return Random.integer(constraintValue-10,constraintValue)(engine);
+		return Random.integer(constraintValue - 10, constraintValue)(engine);
 }
 
 function Constraint(properties)
@@ -52,9 +83,7 @@ function fakeDemo()
 	console.log( faker.phone.phoneFormats() );
 }
 
-var functionConstraints =
-{
-}
+var functionConstraints = {}
 
 var mockFileLibrary = 
 {
@@ -66,81 +95,81 @@ var mockFileLibrary =
 	{
 		pathContent: 
 		{	
-  			file1: 'text content',
-		}
-	}
-	dirWithContent:
-	{
-		pathContent:
-		{
 			file1: 'text content',
 		}
 	}
 };
 
-function generateTestCases()
+function generateTestCases(firstTime)
 {
+	if(firstTime){
+		var content = "var subject = require('./subject.js')\nvar mock = require('mock-fs');\n";
+	}
+	else{
+		var content = "";
+	}
 
-	var content = "var subject = require('./subject.js')\nvar mock = require('mock-fs');\n";
 	for ( var funcName in functionConstraints )
 	{
 		var params = {};
 
 		// initialize params
-		for (var i =0; i < functionConstraints[funcName].params.length; i++ )
+		for (var i = 0; i < functionConstraints[funcName].params.length; i++ )
 		{
 			var paramName = functionConstraints[funcName].params[i];
 			//params[paramName] = '\'' + faker.phone.phoneNumber()+'\'';
 			params[paramName] = '\'\'';
 		}
 
-		//console.log( params );
-
 		// update parameter values based on known constraints.
 		var constraints = functionConstraints[funcName].constraints;
 		// Handle global constraints...
 		var fileWithContent = _.some(constraints, {kind: 'fileWithContent' });
-		var dieWithContent = _.some(constraints, {kind: 'dirWithContent' });
 		var pathExists      = _.some(constraints, {kind: 'fileExists' });
 
 		// plug-in values for parameters
-		for( var c = 0; c < constraints.length; c++ )
+		for( var j = 0; j < constraints.length; j++ )
 		{
-			var constraint = constraints[c];
+			var constraint = constraints[j];
+			// check whether params has key the same as constraint.ident
 			if( params.hasOwnProperty( constraint.ident ) )
 			{
 				params[constraint.ident] = constraint.value;
 			}
 		}
 
-		// Prepare function arguments.
+		// Concatenate function arguments.
 		var args = Object.keys(params).map( function(k) {return params[k]; }).join(",");
-		if( pathExists || fileWithContent || dirWithContent )
-		{
-			content += generateMockFsTestCases(pathExists,fileWithContent,dirWithContent,funcName, args);
-			// Bonus...generate constraint variations test cases....
-			content += generateMockFsTestCases(!pathExists,!fileWithContent,!dirWithContent,funcName, args);
-			content += generateMockFsTestCases(!pathExists,!fileWithContent,dirWithContent,funcName, args);
-			content += generateMockFsTestCases(!pathExists,fileWithContent,!dirWithContent,funcName, args);
-			content += generateMockFsTestCases(pathExists,!fileWithContent,!dirWithContent,funcName, args);
-			content += generateMockFsTestCases(!pathExists,fileWithContent,dirWithContent,funcName, args);
-			content += generateMockFsTestCases(pathExists,!fileWithContent,dirWithContent,funcName, args);
-			content += generateMockFsTestCases(pathExists,fileWithContent,!dirWithContent,funcName, args);
-		}
-		else
-		{
-			// Emit simple test case.
+		// if( pathExists || fileWithContent )
+		// {
+		// 	content += generateMockFsTestCases(pathExists,fileWithContent,funcName, args);
+		// 	// Bonus...generate constraint variations test cases....
+		// 	content += generateMockFsTestCases(!pathExists,!fileWithContent,funcName, args);
+		// 	content += generateMockFsTestCases(!pathExists,fileWithContent,funcName, args);
+		// 	content += generateMockFsTestCases(pathExists,!fileWithContent,funcName, args);
+		// 	content += generateMockFsTestCases(pathExists,fileWithContent,funcName, args);
+		// }
+		// else
+		// {
+			// Generate simple test case.
 			content += "subject.{0}({1});\n".format(funcName, args );
-		}
+		// }
 
 	}
-
-
-	fs.writeFileSync('test.js', content, "utf8");
-
+	// if it is first time, fs will create a new file and write the content.
+	if(firstTime){
+		fs.writeFileSync('test.js', content, "utf8");
+	}
+	// if it is not the first time, fs will append the content to test.js.
+	else{
+		fs.appendFile('test.js', content, function (err) {
+			if (err) return console.log(err);
+			console.log('successfully appended "' + content + '"');
+		});
+	}
 }
 
-function generateMockFsTestCases (pathExists,fileWithContent,dirWithContent,funcName,args) 
+function generateMockFsTestCases (pathExists,fileWithContent,funcName,args) 
 {
 	var testCase = "";
 	// Build mock file system based on constraints.
@@ -152,10 +181,6 @@ function generateMockFsTestCases (pathExists,fileWithContent,dirWithContent,func
 	if( fileWithContent )
 	{
 		for (var attrname in mockFileLibrary.fileWithContent) { mergedFS[attrname] = mockFileLibrary.fileWithContent[attrname]; }
-	}
-	if( dirWithContent )
-	{
-		for (var attrname in mockFileLibrary.dirWithContent) { mergedFS[attrname] = mockFileLibrary.dirWithContent[attrname]; }
 	}
 
 	testCase += 
@@ -169,72 +194,37 @@ function generateMockFsTestCases (pathExists,fileWithContent,dirWithContent,func
 	return testCase;
 }
 
-function constraints(filePath)
+function constraints(filePath, operatorObeyArray)
 {
    var buf = fs.readFileSync(filePath, "utf8");
 	var result = esprima.parse(buf, options);
 	traverse(result, function (node) 
 	{
+		// '===', strict equal, returns true if the operands are equal and of the same type.
+		// '==', equal, returns true if the operands are equal, do not need to be the same type.
 		if (node.type === 'FunctionDeclaration') 
 		{
 			var funcName = functionName(node);
-			console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
+			// console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
 
 			var params = node.params.map(function(p) {return p.name});
-
 			functionConstraints[funcName] = {constraints:[], params: params};
 
 			// Check for expressions using argument.
 			traverse(node, function(child)
 			{
-				if( child.type === 'BinaryExpression' && child.operator == "==")
-				{
-					if( child.left.type == 'Identifier' && params.indexOf( child.left.name ) > -1)
-					{
-						// get expression from original source code:
-						var expression = buf.substring(child.range[0], child.range[1]);
-						var rightHand = buf.substring(child.right.range[0], child.right.range[1])
-
-						functionConstraints[funcName].constraints.push( 
-							new Constraint(
-							{
-								ident: child.left.name,
-								value: rightHand,
-								funcName: funcName,
-								kind: "integer",  //tag
-								operator : child.operator,
-								expression: expression
-							}));
-					}
-				}
-
-				if( child.type === 'BinaryExpression' && child.operator == "<")
-				{
-					if( child.left.type == 'Identifier' && params.indexOf( child.left.name ) > -1)
-					{
-						// get expression from original source code:
-						var expression = buf.substring(child.range[0], child.range[1]);
-						var rightHand = buf.substring(child.right.range[0], child.right.range[1]);
-
-						var val = (parseInt(rightHand) - 1) + "";  // add "" is used to covert integer to string
-
-						functionConstraints[funcName].constraints.push( 
-							new Constraint(
-							{
-								ident: child.left.name,
-								value: val,
-								funcName: funcName,
-								kind: "integer",
-								operator : child.operator,
-								expression: expression
-							}));
-					}
-				}
+				obeyEqual 		= operatorObeyArray[0];
+				obeyUnequal 	= operatorObeyArray[1];
+				obeyGreaterThan = operatorObeyArray[2];
+				obeySmallerThan = operatorObeyArray[3];
+				constraintWithDiffOperator(child, params, buf, funcName, obey);
 
 				if( child.type == "CallExpression" && 
 					 child.callee.property &&
 					 child.callee.property.name =="readFileSync" )
 				{
+					var expression = buf.substring(child.range[0], child.range[1]);
+
 					for( var p =0; p < params.length; p++ )
 					{
 						if( child.arguments[0].name == params[p] )
@@ -253,27 +243,6 @@ function constraints(filePath)
 					}
 				}
 
-				if( child.type == "CallExpression" && 
-					 child.callee.property &&
-					 child.callee.property.name =="readdirSync" )
-				{
-					for( var p =0; p < params.length; p++ )
-					{
-						if( child.arguments[0].name == params[p] )
-						{
-							functionConstraints[funcName].constraints.push( 
-							new Constraint(
-							{
-								ident: params[p],
-								value:  "'pathContent/file1'",
-								funcName: funcName,
-								kind: "dirWithContent",
-								operator : child.operator,
-								expression: expression
-							}));
-						}
-					}
-				}
 
 				if( child.type == "CallExpression" &&
 					 child.callee.property &&
@@ -300,42 +269,95 @@ function constraints(filePath)
 
 			});
 
-			console.log( functionConstraints[funcName]);
+			// console.log( functionConstraints[funcName]);
 
 		}
 	});
 }
 
+function constraintWithDiffOperator(child, params, buf, funcName, obey){
+	var operator = child.operator;
+	operatorArray.push(operator);
+	if(child.type === 'BinaryExpression')
+	{
+		if(child.left.type == 'Identifier' && params.indexOf( child.left.name ) > -1)
+		{
+			// get expression from original source code:
+			var expression = buf.substring(child.range[0], child.range[1]);
+			var rightHand = buf.substring(child.right.range[0], child.right.range[1])
+
+			if(operator == "==" && obey == 1){
+				var val = rightHand;
+			}
+			else if(operator == "==" && obey == 0){
+				var val = rightHand + "keke";
+			}
+			if(operator == "<" && obey == 1){
+				var val = (parseInt(rightHand) - 1) + "";
+			}
+			else if(operator == "<" && obey == 0){
+				var val = parseInt(rightHand) + "";
+			}
+			if(operator == ">" && obey == 1){
+				var val = (parseInt(rightHand) + 1) + "";
+			}
+			else if(operator == ">" && obey == 0){
+				var val = parseInt(rightHand) + "";
+			}
+			if(operator == "!=" && obey == 1){
+				var val = "\"" + rightHand.replace(/["]+/g, '') + "Diff\"";
+			}
+			else if(operator == "!=" && obey == 0){
+				var val = rightHand;
+			}
+debugger;
+console.log(operator);
+console.log(obey);
+console.log(val);
+			functionConstraints[funcName].constraints.push( 
+				new Constraint(
+				{
+					ident: child.left.name,
+					value: rightHand,
+					funcName: funcName,
+					kind: "integer",  //tag
+					operator : child.operator,
+					expression: expression
+				}));
+		}
+	}
+}
+
 function traverse(object, visitor) 
 {
-    var key, child;
+	var key, child;
 
-    visitor.call(null, object);
-    for (key in object) {
-        if (object.hasOwnProperty(key)) {
-            child = object[key];
-            if (typeof child === 'object' && child !== null) {
-                traverse(child, visitor);
-            }
-        }
-    }
+	visitor.call(null, object);
+	for (key in object) {
+		if (object.hasOwnProperty(key)) {
+			child = object[key];
+			if (typeof child === 'object' && child !== null) {
+				traverse(child, visitor);
+			}
+		}
+	}
 }
 
 function traverseWithCancel(object, visitor)
 {
-    var key, child;
+	var key, child;
 
-    if( visitor.call(null, object) )
-    {
-	    for (key in object) {
-	        if (object.hasOwnProperty(key)) {
-	            child = object[key];
-	            if (typeof child === 'object' && child !== null) {
-	                traverseWithCancel(child, visitor);
-	            }
-	        }
-	    }
- 	 }
+	if( visitor.call(null, object) )
+	{
+		for (key in object) {
+			if (object.hasOwnProperty(key)) {
+				child = object[key];
+				if (typeof child === 'object' && child !== null) {
+					traverseWithCancel(child, visitor);
+				}
+			}
+		}
+	 }
 }
 
 function functionName( node )
@@ -350,13 +372,13 @@ function functionName( node )
 
 if (!String.prototype.format) {
   String.prototype.format = function() {
-    var args = arguments;
-    return this.replace(/{(\d+)}/g, function(match, number) { 
-      return typeof args[number] != 'undefined'
-        ? args[number]
-        : match
-      ;
-    });
+	var args = arguments;
+	return this.replace(/{(\d+)}/g, function(match, number) { 
+	  return typeof args[number] != 'undefined'
+		? args[number]
+		: match
+	  ;
+	});
   };
 }
 
