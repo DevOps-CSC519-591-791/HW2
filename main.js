@@ -6,7 +6,7 @@ faker.locale = "en";
 var mock = require('mock-fs');
 var _ = require('underscore');
 var Random = require('random-js');
-
+var S = require('string');
 
 function main()
 {
@@ -19,10 +19,20 @@ function main()
 	var filePath = args[0];
 
 	var operatorArray = ['==', '!=', '>', '<'];
-	var obeyArray = [[0, 0, 1, 0, 1, 0, 1, 0],
-					 [0, 1, 1, 0, 1, 0, 1, 0],
-					 [1, 0, 1, 0, 1, 0, 1, 0],
-					 [1, 1, 1, 0, 1, 0, 1, 0]];
+
+	var obeyArray = [];
+	// var obeyArray = [[0, 0, 1, 0, 1, 0, 1, 0],
+	// 				 [0, 1, 1, 0, 1, 0, 1, 0],
+	// 				 [1, 0, 1, 0, 1, 0, 1, 0],
+	// 				 [1, 1, 1, 0, 1, 0, 1, 0]];
+	for(var m = 0; m < Math.pow(2, 8); m++){
+		binaryNum = m.toString(2);
+		// Pad 0 on the right side of the string
+		var binaryString = S(binaryNum).padLeft(8, '0').replaceAll('', ',').s;
+		var binaryArray = JSON.parse("[" + binaryString + "]");
+		obeyArray.push(binaryArray);
+	}
+	console.log(obeyArray);
 	var operatorObeyArrayIndex = 0;
 
 	for(var k = 0; k < obeyArray.length; k++){
@@ -31,12 +41,15 @@ console.log("=============================================");
 console.log("k\t" + k);
 		if(k == 0){
 			constraints(filePath, operatorArray, operatorObeyArray, operatorObeyArrayIndex);
-			generateTestCases(true);
+			// Record whether it is the first time to write 'test.js' file.
+			var isFirstTime = true
+			generateTestCases(filePath, isFirstTime);
 		}
 		else{
 			functionConstraints = {}
 			constraints(filePath, operatorArray, operatorObeyArray, operatorObeyArrayIndex);
-			generateTestCases(false);
+			var isFirstTime = false
+			generateTestCases(filePath, isFirstTime);
 			operatorObeyArrayIndex = 0;
 		}
 	}
@@ -90,10 +103,10 @@ var mockFileLibrary =
 	}
 };
 
-function generateTestCases(firstTime)
+function generateTestCases(filePath, isFirstTime)
 {
-	if(firstTime){
-		var content = "var subject = require('./subject.js')\nvar mock = require('mock-fs');\n";
+	if(isFirstTime){
+		var content = "var subject = require('./" + filePath + "')\nvar mock = require('mock-fs');\n";
 	}
 	else{
 		var content = "";
@@ -147,7 +160,7 @@ function generateTestCases(firstTime)
 
 	}
 	// if it is first time, fs will create a new file and write the content.
-	if(firstTime){
+	if(isFirstTime){
 		fs.writeFileSync('test.js', content, "utf8");
 	}
 	// if it is not the first time, fs will append the content to test.js.

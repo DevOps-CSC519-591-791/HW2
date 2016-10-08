@@ -15,6 +15,7 @@
     "microtime": "^2.1.1",
     "mock-fs": "^3.11.0",
     "random-js": "^1.0.8",
-    "underscore": "^1.8.3"
+    "underscore": "^1.8.3",
+    "string": "^3.3.1"
   }
 }
