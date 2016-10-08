@@ -18,36 +18,26 @@ function main()
 	}
 	var filePath = args[0];
 
-	var operatorArray = [];
-	var operatorObeyArray = [];
-	var operatorObeyArray = [[1, 1, 1, 1],
-							 [0, 1, 1, 1],
-							 [1, 0, 1, 1],
-							 [1, 1, 0, 1],
-							 [1, 1, 1, 0],
-							 [0, 0, 1, 1],
-							 [0, 1, 0, 1],
-							 [0, 1, 1, 0],
-							 [1, 0, 0, 1],
-							 [1, 0, 1, 0],
-							 [1, 1, 0, 0],
-							 [0, 0, 0, 1],
-							 [0, 0, 1, 0],
-							 [0, 1, 0, 0],
-							 [1, 0, 0, 0],
-							 [0, 0, 0, 0]];
+	var operatorArray = ['==', '!=', '>', '<'];
+	var obeyArray = [[0, 0, 1, 0, 1, 0, 1, 0],
+					 [0, 1, 1, 0, 1, 0, 1, 0],
+					 [1, 0, 1, 0, 1, 0, 1, 0],
+					 [1, 1, 1, 0, 1, 0, 1, 0]];
+	var operatorObeyArrayIndex = 0;
 
-	for(var k = 0; k < operatorObeyArray.length; k++){
+	for(var k = 0; k < obeyArray.length; k++){
+		var operatorObeyArray = obeyArray[k];
+console.log("=============================================");
+console.log("k\t" + k);
 		if(k == 0){
-			constraints(filePath, operatorObeyArray[k]);
+			constraints(filePath, operatorArray, operatorObeyArray, operatorObeyArrayIndex);
 			generateTestCases(true);
-			var count = operatorArray.length;
-			var 
 		}
 		else{
 			functionConstraints = {}
-			constraints(filePath, operatorObeyArray[k]);
+			constraints(filePath, operatorArray, operatorObeyArray, operatorObeyArrayIndex);
 			generateTestCases(false);
+			operatorObeyArrayIndex = 0;
 		}
 	}
 }
@@ -194,18 +184,18 @@ function generateMockFsTestCases (pathExists,fileWithContent,funcName,args)
 	return testCase;
 }
 
-function constraints(filePath, operatorObeyArray)
+function constraints(filePath, operatorArray, operatorObeyArray, operatorObeyArrayIndex)
 {
-   var buf = fs.readFileSync(filePath, "utf8");
+    var buf = fs.readFileSync(filePath, "utf8");
 	var result = esprima.parse(buf, options);
 	traverse(result, function (node) 
 	{
 		// '===', strict equal, returns true if the operands are equal and of the same type.
-		// '==', equal, returns true if the operands are equal, do not need to be the same type.
+		// '==',  equal, 		returns true if the operands are equal, do not need to be the same type.
 		if (node.type === 'FunctionDeclaration') 
 		{
 			var funcName = functionName(node);
-			// console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
+			console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
 
 			var params = node.params.map(function(p) {return p.name});
 			functionConstraints[funcName] = {constraints:[], params: params};
@@ -213,11 +203,19 @@ function constraints(filePath, operatorObeyArray)
 			// Check for expressions using argument.
 			traverse(node, function(child)
 			{
-				obeyEqual 		= operatorObeyArray[0];
-				obeyUnequal 	= operatorObeyArray[1];
-				obeyGreaterThan = operatorObeyArray[2];
-				obeySmallerThan = operatorObeyArray[3];
-				constraintWithDiffOperator(child, params, buf, funcName, obey);
+				//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+				if(child.type === 'BinaryExpression' && operatorArray.indexOf(child.operator) > -1)
+				{
+					if(child.left.type == 'Identifier' && params.indexOf( child.left.name ) > -1)
+					{
+						// console.log(child.operator);
+						
+				console.log("operatorObeyArrayIndex\t" + operatorObeyArrayIndex);
+				console.log("Obey\t" + operatorObeyArray[operatorObeyArrayIndex]);
+						constraintWithDiffOperator(child, params, buf, funcName, operatorObeyArray[operatorObeyArrayIndex]);
+						operatorObeyArrayIndex++;
+					}
+				}
 
 				if( child.type == "CallExpression" && 
 					 child.callee.property &&
@@ -243,7 +241,6 @@ function constraints(filePath, operatorObeyArray)
 					}
 				}
 
-
 				if( child.type == "CallExpression" &&
 					 child.callee.property &&
 					 child.callee.property.name =="existsSync")
@@ -266,7 +263,6 @@ function constraints(filePath, operatorObeyArray)
 						}
 					}
 				}
-
 			});
 
 			// console.log( functionConstraints[funcName]);
@@ -277,55 +273,51 @@ function constraints(filePath, operatorObeyArray)
 
 function constraintWithDiffOperator(child, params, buf, funcName, obey){
 	var operator = child.operator;
-	operatorArray.push(operator);
-	if(child.type === 'BinaryExpression')
-	{
-		if(child.left.type == 'Identifier' && params.indexOf( child.left.name ) > -1)
-		{
-			// get expression from original source code:
-			var expression = buf.substring(child.range[0], child.range[1]);
-			var rightHand = buf.substring(child.right.range[0], child.right.range[1])
 
-			if(operator == "==" && obey == 1){
-				var val = rightHand;
-			}
-			else if(operator == "==" && obey == 0){
-				var val = rightHand + "keke";
-			}
-			if(operator == "<" && obey == 1){
-				var val = (parseInt(rightHand) - 1) + "";
-			}
-			else if(operator == "<" && obey == 0){
-				var val = parseInt(rightHand) + "";
-			}
-			if(operator == ">" && obey == 1){
-				var val = (parseInt(rightHand) + 1) + "";
-			}
-			else if(operator == ">" && obey == 0){
-				var val = parseInt(rightHand) + "";
-			}
-			if(operator == "!=" && obey == 1){
-				var val = "\"" + rightHand.replace(/["]+/g, '') + "Diff\"";
-			}
-			else if(operator == "!=" && obey == 0){
-				var val = rightHand;
-			}
-debugger;
-console.log(operator);
-console.log(obey);
-console.log(val);
-			functionConstraints[funcName].constraints.push( 
-				new Constraint(
-				{
-					ident: child.left.name,
-					value: rightHand,
-					funcName: funcName,
-					kind: "integer",  //tag
-					operator : child.operator,
-					expression: expression
-				}));
-		}
+	// get expression from original source code:
+	var expression = buf.substring(child.range[0], child.range[1]);
+	var rightHand = buf.substring(child.right.range[0], child.right.range[1])
+
+	if(operator == "==" && obey == 1){
+		var val = rightHand;
 	}
+	else if(operator == "==" && obey == 0){
+		// JSON.stringify() converts plain output to string
+		var val = JSON.stringify(Random.string()(engine, 11));
+	}
+	if(operator == "<" && obey == 1){
+		var val = (parseInt(rightHand) - 1) + "";
+	}
+	else if(operator == "<" && obey == 0){
+		var val = parseInt(rightHand) + "";
+	}
+	if(operator == ">" && obey == 1){
+		var val = (parseInt(rightHand) + 1) + "";
+	}
+	else if(operator == ">" && obey == 0){
+		var val = parseInt(rightHand) + "";
+	}
+	if(operator == "!=" && obey == 1){
+		var val = "\"" + rightHand.replace(/["]+/g, '') + "Diff\"";
+	}
+	else if(operator == "!=" && obey == 0){
+		var val = rightHand;
+	}
+// debugger;
+console.log("operator\t" + operator);
+console.log("obey\t" + obey);
+console.log("val\t" + val);
+console.log("++++++++++++++++++++++++++");
+	functionConstraints[funcName].constraints.push( 
+		new Constraint(
+		{
+			ident: child.left.name,
+			value: val,
+			funcName: funcName,
+			kind: "integer",  //tag
+			operator : child.operator,
+			expression: expression
+		}));
 }
 
 function traverse(object, visitor) 
