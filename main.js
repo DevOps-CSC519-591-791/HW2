@@ -57,16 +57,6 @@ console.log("k\t" + k);
 
 var engine = Random.engines.mt19937().autoSeed();
 
-// ???
-function createConcreteIntegerValue( greaterThan, constraintValue )
-{
-	if( greaterThan )
-		// Produce an integer within the inclusive range [min, max]
-		return Random.integer(constraintValue, constraintValue + 10)(engine);
-	else
-		return Random.integer(constraintValue - 10, constraintValue)(engine);
-}
-
 function Constraint(properties)
 {
 	this.ident = properties.ident;
@@ -291,31 +281,31 @@ function constraintWithDiffOperator(child, params, buf, funcName, obey){
 	var expression = buf.substring(child.range[0], child.range[1]);
 	var rightHand = buf.substring(child.right.range[0], child.right.range[1])
 
-	if(operator == "==" && obey == 1){
+	if((operator == "==" && obey == 1) || (operator == "!=" && obey == 0)){
 		var val = rightHand;
 	}
-	else if(operator == "==" && obey == 0){
+	else if((operator == "==" && obey == 0) || (operator == "!=" && obey == 1)){
 		// JSON.stringify() converts plain output to string
 		var val = JSON.stringify(Random.string()(engine, 11));
 	}
-	if(operator == "<" && obey == 1){
+	if((operator == "<" && obey == 1) || (operator == ">" && obey == 0)){
 		var val = (parseInt(rightHand) - 1) + "";
 	}
-	else if(operator == "<" && obey == 0){
-		var val = parseInt(rightHand) + "";
-	}
-	if(operator == ">" && obey == 1){
+	else if((operator == "<" && obey == 0) || (operator == ">" && obey == 1)){
 		var val = (parseInt(rightHand) + 1) + "";
 	}
-	else if(operator == ">" && obey == 0){
-		var val = parseInt(rightHand) + "";
-	}
-	if(operator == "!=" && obey == 1){
-		var val = "\"" + rightHand.replace(/["]+/g, '') + "Diff\"";
-	}
-	else if(operator == "!=" && obey == 0){
-		var val = rightHand;
-	}
+	// if(operator == ">" && obey == 1){
+	// 	var val = (parseInt(rightHand) + 1) + "";
+	// }
+	// else if(operator == ">" && obey == 0){
+	// 	var val = parseInt(rightHand) + "";
+	// }
+	// if(operator == "!=" && obey == 1){
+	// 	var val = "\"" + rightHand.replace(/["]+/g, '') + "Diff\"";
+	// }
+	// else if(operator == "!=" && obey == 0){
+	// 	var val = rightHand;
+	// }
 // debugger;
 console.log("operator\t" + operator);
 console.log("obey\t" + obey);
