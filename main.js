@@ -7,6 +7,7 @@ var mock = require('mock-fs');
 var _ = require('underscore');
 var Random = require('random-js');
 var S = require('string');
+var HashMap = require("hashmap");
 
 function main()
 {
@@ -25,34 +26,66 @@ function main()
 	// 				 [0, 1, 1, 0, 1, 0, 1, 0],
 	// 				 [1, 0, 1, 0, 1, 0, 1, 0],
 	// 				 [1, 1, 1, 0, 1, 0, 1, 0]];
-	for(var m = 0; m < Math.pow(2, 8); m++){
-		binaryNum = m.toString(2);
-		// Pad 0 on the right side of the string
-		var binaryString = S(binaryNum).padLeft(8, '0').replaceAll('', ',').s;
-		var binaryArray = JSON.parse("[" + binaryString + "]");
-		obeyArray.push(binaryArray);
-	}
+	// for(var m = 0; m < Math.pow(2, 8); m++){
+	// 	binaryNum = m.toString(2);
+	// 	// Pad 0 on the right side of the string
+	// 	var binaryString = S(binaryNum).padLeft(8, '0').replaceAll('', ',').s;
+	// 	var binaryArray = JSON.parse("[" + binaryString + "]");
+	// 	obeyArray.push(binaryArray);
+	// }
+	var currFuncIndex = 0;
+	var hashMap = new HashMap();
+	checkInAdvanceForEachFunction(filePath, obeyArray, operatorArray, hashMap);
 	console.log(obeyArray);
+	console.log(hashMap);
 	var operatorObeyArrayIndex = 0;
 
-	for(var k = 0; k < obeyArray.length; k++){
-		var operatorObeyArray = obeyArray[k];
+
+	hashMap.forEach(function(value, key){
+		var formerCombinationNum = 0;
+		for(var k = 0; k < value; k++){
+			var operatorObeyArray = obeyArray[k + formerCombinationNum];
+			var currFuncName = key;
 console.log("=============================================");
 console.log("k\t" + k);
-		if(k == 0){
-			constraints(filePath, operatorArray, operatorObeyArray, operatorObeyArrayIndex);
-			// Record whether it is the first time to write 'test.js' file.
-			var isFirstTime = true
-			generateTestCases(filePath, isFirstTime);
+			if(k == 0){
+				constraints(filePath, operatorArray, currFuncName, operatorObeyArray, operatorObeyArrayIndex);
+				// Record whether it is the first time to write 'test.js' file.
+				var isFirstTime = true
+				generateTestCases(filePath, isFirstTime);
+			}
+			else{
+				functionConstraints = {}
+				constraints(filePath, operatorArray, currFuncName, operatorObeyArray, operatorObeyArrayIndex);
+				var isFirstTime = false
+				generateTestCases(filePath, isFirstTime);
+				operatorObeyArrayIndex = 0;
+			}
 		}
-		else{
-			functionConstraints = {}
-			constraints(filePath, operatorArray, operatorObeyArray, operatorObeyArrayIndex);
-			var isFirstTime = false
-			generateTestCases(filePath, isFirstTime);
-			operatorObeyArrayIndex = 0;
-		}
-	}
+	});
+	
+
+// 	for(var k = 0; k < obeyArray.length; k++){
+
+// 		var operatorObeyArray = obeyArray[k];
+// 		combinationNum = hashMap.get(currFuncName);
+
+// console.log("=============================================");
+// console.log("k\t" + k);
+// 		if(k == 0){
+// 			constraints(filePath, operatorArray, currFuncName, operatorObeyArray, operatorObeyArrayIndex);
+// 			// Record whether it is the first time to write 'test.js' file.
+// 			var isFirstTime = true
+// 			generateTestCases(filePath, isFirstTime);
+// 		}
+// 		else{
+// 			functionConstraints = {}
+// 			constraints(filePath, operatorArray, currFuncName, operatorObeyArray, operatorObeyArrayIndex);
+// 			var isFirstTime = false
+// 			generateTestCases(filePath, isFirstTime);
+// 			operatorObeyArrayIndex = 0;
+// 		}
+// 	}
 }
 
 var engine = Random.engines.mt19937().autoSeed();
@@ -187,7 +220,48 @@ function generateMockFsTestCases (pathExists,fileWithContent,funcName,args)
 	return testCase;
 }
 
-function constraints(filePath, operatorArray, operatorObeyArray, operatorObeyArrayIndex)
+function checkInAdvanceForEachFunction(filePath, obeyArray, operatorArray, hashMap){
+	var buf = fs.readFileSync(filePath, "utf8");
+	var result = esprima.parse(buf, options);
+	traverse(result, function (node) 
+	{
+		if (node.type === 'FunctionDeclaration') 
+		{
+			// store funcName in array
+			var funcName = functionName(node);
+			var targetOperatorNum = 0;
+			var params = node.params.map(function(p) {return p.name});
+			// Check for expressions using argument.
+			traverse(node, function(child)
+			{
+				if(child.type === 'BinaryExpression' && operatorArray.indexOf(child.operator) > -1)
+				{
+					if(child.left.type == 'Identifier' && params.indexOf( child.left.name ) > -1)
+					{
+						//count target operator number in each function
+						targetOperatorNum++;
+					}
+				}
+			});
+
+			numOfCombination = Math.pow(2, targetOperatorNum);
+			// insert funName and # of combination according to the # of target operators
+			// into hashMap
+			hashMap.set(funcName, numOfCombination);
+
+			for(var m = 0; m < numOfCombination; m++){
+				binaryNum = m.toString(2);
+				// Pad 0 on the right side of the string
+				var binaryString = S(binaryNum).padLeft(targetOperatorNum, '0').replaceAll('', ',').s;
+				var binaryArray = JSON.parse("[" + binaryString + "]");
+				obeyArray.push(binaryArray);
+			}
+			//console.log(obeyArray);
+		}
+	});
+}
+
+function constraints(filePath, operatorArray, currFuncName, operatorObeyArray, operatorObeyArrayIndex)
 {
     var buf = fs.readFileSync(filePath, "utf8");
 	var result = esprima.parse(buf, options);
@@ -198,6 +272,10 @@ function constraints(filePath, operatorArray, operatorObeyArray, operatorObeyArr
 		if (node.type === 'FunctionDeclaration') 
 		{
 			var funcName = functionName(node);
+			if(funcName != currFuncName){
+				return;
+			}
+
 			console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
 
 			var params = node.params.map(function(p) {return p.name});
@@ -294,19 +372,6 @@ function constraintWithDiffOperator(child, params, buf, funcName, obey){
 	else if((operator == "<" && obey == 0) || (operator == ">" && obey == 1)){
 		var val = (parseInt(rightHand) + 1) + "";
 	}
-	// if(operator == ">" && obey == 1){
-	// 	var val = (parseInt(rightHand) + 1) + "";
-	// }
-	// else if(operator == ">" && obey == 0){
-	// 	var val = parseInt(rightHand) + "";
-	// }
-	// if(operator == "!=" && obey == 1){
-	// 	var val = "\"" + rightHand.replace(/["]+/g, '') + "Diff\"";
-	// }
-	// else if(operator == "!=" && obey == 0){
-	// 	var val = rightHand;
-	// }
-// debugger;
 console.log("operator\t" + operator);
 console.log("obey\t" + obey);
 console.log("val\t" + val);
