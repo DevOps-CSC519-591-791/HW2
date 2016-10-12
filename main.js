@@ -9,6 +9,8 @@ var Random = require('random-js');
 var S = require('string');
 var HashMap = require("hashmap");
 
+var equalStringArr = [];
+
 function main()
 {
 	var args = process.argv.slice(2);
@@ -23,7 +25,6 @@ function main()
 	var reverseOperatorHashMap = new HashMap();
 	
 	var obeyArray = [];
-
 	var currFuncIndex = 0;
 	var hashMap = new HashMap();
 	checkInAdvanceForEachFunction(filePath, obeyArray, operatorArray, hashMap);
@@ -371,12 +372,16 @@ function constraintWithDiffOperator(child, params, buf, funcName, obey, diffStri
 	var rightHand = buf.substring(child.right.range[0], child.right.range[1])
 
 	if((operator == "==" && obey == 1) || (operator == "!=" && obey == 0)){
+		equalStringArr.push(rightHand);
 		if(child.left.name == "area"){
 			var val = JSON.stringify(faker.phone.phoneNumberFormat()).substr(-10);
 			val = rightHand.slice(0, -1) + val;
 		}
 		else{
-			var val = rightHand;
+			var val = equalStringArr[Random.integer(0, equalStringArr.length)(engine)];
+			if(val == null){
+				val = rightHand;
+			}
 		}
 	}
 	else if((operator == "==" && obey == 0) || (operator == "!=" && obey == 1)){
