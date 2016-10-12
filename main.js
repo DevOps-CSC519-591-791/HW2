@@ -19,7 +19,7 @@ function main()
 	}
 	var filePath = args[0];
 
-	var operatorArray = ['==', '!=', '>', '<'];
+	var operatorArray = ['==', '!=', '>', '<', '||'];
 	var reverseOperatorHashMap = new HashMap();
 	
 	var obeyArray = [];
@@ -27,20 +27,14 @@ function main()
 	var currFuncIndex = 0;
 	var hashMap = new HashMap();
 	checkInAdvanceForEachFunction(filePath, obeyArray, operatorArray, hashMap);
-	// console.log(obeyArray);
-	// // console.log(hashMap);
 	var formerCombinationNum = 0;
-
 	var content = "var subject = require('./" + filePath + "')\nvar mock = require('mock-fs');\n";
 	fs.writeFileSync('test.js', content, "utf8");
 
 	hashMap.forEach(function(value, key){
 		for(var k = 0; k < value; k++){
 			var operatorObeyArray = obeyArray[k + formerCombinationNum];
-		// console.log(operatorObeyArray);
 			var currFuncName = key;
-// // console.log("=============================================");
-// // console.log("k\t" + k);
 			functionConstraints = {}
 			constraints(filePath, operatorArray, currFuncName, operatorObeyArray, 0);
 			generateTestCases(filePath);
@@ -65,9 +59,9 @@ function Constraint(properties)
 
 function fakeDemo()
 {
-	// // console.log( faker.phone.phoneNumber() );
-	// // console.log( faker.phone.phoneNumberFormat() );
-	// // console.log( faker.phone.phoneFormats() );
+	// console.log( faker.phone.phoneNumber() );
+	// console.log( faker.phone.phoneNumberFormat() );
+	// console.log( faker.phone.phoneFormats() );
 }
 
 var functionConstraints = {}
@@ -105,7 +99,6 @@ function generateTestCases(filePath)
 
 		// update parameter values based on known constraints.
 		var constraints = functionConstraints[funcName].constraints;
-// console.log(constraints);
 		// Handle global constraints...
 		var fileWithContent = _.some(constraints, {kind: 'fileWithContent' });
 		var pathExists      = _.some(constraints, {kind: 'fileExists' });
@@ -124,21 +117,20 @@ function generateTestCases(filePath)
 		// Concatenate function arguments.
 		var args = Object.keys(params).map( function(k) {return params[k]; }).join(",");
 
-		// if( pathExists || fileWithContent )
-		// {
-		// 	content += generateMockFsTestCases(pathExists,fileWithContent,funcName, args);
-		// 	// Bonus...generate constraint variations test cases....
-		// 	content += generateMockFsTestCases(!pathExists,!fileWithContent,funcName, args);
-		// 	content += generateMockFsTestCases(!pathExists,fileWithContent,funcName, args);
-		// 	content += generateMockFsTestCases(pathExists,!fileWithContent,funcName, args);
-		// 	content += generateMockFsTestCases(pathExists,fileWithContent,funcName, args);
-		// }
-		// else
-		// {
+		if( pathExists || fileWithContent )
+		{
+			content += generateMockFsTestCases(pathExists,fileWithContent,funcName, args);
+			// Bonus...generate constraint variations test cases....
+			content += generateMockFsTestCases(!pathExists,!fileWithContent,funcName, args);
+			content += generateMockFsTestCases(!pathExists,fileWithContent,funcName, args);
+			content += generateMockFsTestCases(pathExists,!fileWithContent,funcName, args);
+			content += generateMockFsTestCases(pathExists,fileWithContent,funcName, args);
+		}
+		else
+		{
 			// Generate simple test case.
 			content += "subject.{0}({1});\n".format(funcName, args );
-// console.log("subject.{0}({1});\n".format(funcName, args ));
-		// }
+		}
 
 	}
 	
@@ -206,7 +198,6 @@ function checkInAdvanceForEachFunction(filePath, obeyArray, operatorArray, hashM
 				var binaryArray = JSON.parse("[" + binaryString + "]");
 				obeyArray.push(binaryArray);
 			}
-			//// // console.log(obeyArray);
 		}
 	});
 }
@@ -226,7 +217,7 @@ function constraints(filePath, operatorArray, currFuncName, operatorObeyArray, o
 			if(funcName != currFuncName){
 				return;
 			}
-
+			
 			// // console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
 
 			var params = node.params.map(function(p) {return p.name});
@@ -235,8 +226,6 @@ function constraints(filePath, operatorArray, currFuncName, operatorObeyArray, o
 			// Check for expressions using argument.
 			traverse(node, function(child)
 			{
-
-				
 				if( child.type == "CallExpression" && 
 					 child.callee.property &&
 					 child.callee.property.name =="indexOf" )
@@ -250,34 +239,46 @@ function constraints(filePath, operatorArray, currFuncName, operatorObeyArray, o
 							diffString = child.arguments[0].value;
 					//console.log(diffString);
 							functionConstraints[funcName].constraints.push( 
-							new Constraint(
-							{
-								ident: params[p],
-								value:  child.arguments[0].value,
-								funcName: currFuncName,
-								kind: "integer",
-								operator : "==",
-								expression: expression
-							}));
+								new Constraint(
+								{
+									ident: params[p],
+									value:  child.arguments[0].value,
+									funcName: currFuncName,
+									kind: "integer",
+									operator : "==",
+									expression: expression
+								}));
 						}
 					}
 				}
 
-				//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 				if(child.type === 'BinaryExpression' && operatorArray.indexOf(child.operator) > -1)
 				{
-					if(child.left.type == 'Identifier' && params.indexOf( child.left.name ) > -1)
+					if(child.left.type == 'Identifier' && 
+						(params.indexOf( child.left.name ) > -1 || child.left.name == "area"))
 					{
-						// // // console.log(child.operator);
-						
-				// // console.log("operatorObeyArrayIndex\t" + operatorObeyArrayIndex);
-				// // console.log("Obey\t" + operatorObeyArray[operatorObeyArrayIndex]);
 						constraintWithDiffOperator(child, params, buf, funcName, operatorObeyArray[operatorObeyArrayIndex], diffString);
 						operatorObeyArrayIndex++;
 					}
 				}
 
-				
+				if(child.type === 'LogicalExpression' && operatorArray.indexOf(child.operator) > -1)
+				{
+					if(child.right.type == 'UnaryExpression' &&
+					 	child.right.argument.type == 'MemberExpression')
+					{
+						functionConstraints[funcName].constraints.push( 
+							new Constraint(
+							{
+								ident: child.right.argument.object.name,
+								value: "{normalize: true}",
+								funcName: funcName,
+								kind: "integer",  //tag
+								operator : child.operator,
+								expression: expression
+							}));
+					}
+				}
 
 				if( child.type == "CallExpression" && 
 					 child.callee.property &&
@@ -341,15 +342,26 @@ function constraintWithDiffOperator(child, params, buf, funcName, obey, diffStri
 	var rightHand = buf.substring(child.right.range[0], child.right.range[1])
 
 	if((operator == "==" && obey == 1) || (operator == "!=" && obey == 0)){
-		var val = rightHand;
+		if(child.left.name == "area"){
+			var val = JSON.stringify(faker.phone.phoneNumberFormat()).substr(-10);
+			val = rightHand.slice(0, -1) + val;
+		}
+		else{
+			var val = rightHand;
+		}
 	}
 	else if((operator == "==" && obey == 0) || (operator == "!=" && obey == 1)){
-		// JSON.stringify() converts plain output to string
-		var potentialValueArr = [];
-		potentialValueArr.push(JSON.stringify(Random.string()(engine, 11)));
-		potentialValueArr.push(JSON.stringify(diffString));
+		if(child.left.name == "area"){
+			var val = JSON.stringify(faker.phone.phoneNumberFormat());
+		}
+		else{
+			// JSON.stringify() converts plain output to string
+			var potentialValueArr = [];
+			potentialValueArr.push(JSON.stringify(Random.string()(engine, 11)));
+			potentialValueArr.push(JSON.stringify(diffString));
 
-		var val = potentialValueArr[Random.integer(0, 1)(engine)];
+			var val = potentialValueArr[Random.integer(0, 1)(engine)];
+		}
 	}
 	if((operator == "<" && obey == 1) || (operator == ">" && obey == 0)){
 		var val = (parseInt(rightHand) - 1) + "";
@@ -357,20 +369,31 @@ function constraintWithDiffOperator(child, params, buf, funcName, obey, diffStri
 	else if((operator == "<" && obey == 0) || (operator == ">" && obey == 1)){
 		var val = (parseInt(rightHand) + 1) + "";
 	}
-// // console.log("operator\t" + operator);
-// // console.log("obey\t" + obey);
-// // console.log("val\t" + val);
-// // console.log("++++++++++++++++++++++++++");
-	functionConstraints[funcName].constraints.push( 
-		new Constraint(
-		{
-			ident: child.left.name,
-			value: val,
-			funcName: funcName,
-			kind: "integer",  //tag
-			operator : child.operator,
-			expression: expression
-		}));
+
+	if(child.left.name == "area"){
+		functionConstraints[funcName].constraints.push( 
+			new Constraint(
+			{
+				ident: "phoneNumber",
+				value: val,
+				funcName: funcName,
+				kind: "integer",  //tag
+				operator : child.operator,
+				expression: expression
+			}));
+	}
+	else{
+		functionConstraints[funcName].constraints.push( 
+			new Constraint(
+			{
+				ident: child.left.name,
+				value: val,
+				funcName: funcName,
+				kind: "integer",  //tag
+				operator : child.operator,
+				expression: expression
+			}));
+	}
 }
 
 function traverse(object, visitor) 

@@ -55,21 +55,23 @@ function main()
 	fs.writeFileSync('test.js', content, "utf8");
 
 	constraints(filePath);
+//console.log(operatorHashMapWithFuncName);
 
 	// generate function constraints for each function
 	operatorHashMapWithFuncName.forEach(function(value, key){
 		// temporary!!!!!! value.get('params').length
 		var paramsNum = value.count() - 2;
 		numOfCombination = Math.pow(2, paramsNum);
-		functionConstraints[key].constraints = [];
-		functionConstraints[key].params = value.get('params');
-
+		
+//console.log(functionConstraints[key].params);
 		for(var m = 0; m < numOfCombination; m++){
+			var params = (value.get('params') == null) ? [] : value.get('params');
+			functionConstraints[key] = {constraints:[], params: params};
 			binaryNum = m.toString(2);
 			// Pad 0 on the right side of the string
 			var binaryString = S(binaryNum).padLeft(paramsNum, '0').replaceAll('', ',').s;
 			var binaryArray = JSON.parse("[" + binaryString + "]");
-		console.log(binaryArray);
+		 console.log(binaryArray);
 			for(var n = 0; n < paramsNum; n++){
 				functionConstraints[key].constraints.push( 
 					new Constraint(
@@ -83,6 +85,7 @@ function main()
 					})
 				);
 			}
+	console.log(functionConstraints[key].constraints);
 			generateTestCases(filePath);
 		}
 	});
@@ -103,9 +106,9 @@ function Constraint(properties)
 
 function fakeDemo()
 {
-	// console.log( faker.phone.phoneNumber() );
-	// console.log( faker.phone.phoneNumberFormat() );
-	// console.log( faker.phone.phoneFormats() );
+	// // console.log( faker.phone.phoneNumber() );
+	// // console.log( faker.phone.phoneNumberFormat() );
+	// // console.log( faker.phone.phoneFormats() );
 }
 
 
@@ -141,10 +144,10 @@ function generateTestCases(filePath)
 				params[constraint.ident] = constraint.value;
 			}
 		}
-console.log(params);
+// console.log(params);
 		// Concatenate function arguments.
 		var args = Object.keys(params).map( function(k) {return params[k]; }).join(",");
-console.log(args);
+ console.log(args);
 		// if( pathExists || fileWithContent )
 		// {
 		// 	content += generateMockFsTestCases(pathExists,fileWithContent,funcName, args);
@@ -158,14 +161,14 @@ console.log(args);
 		// {
 			// Generate simple test case.
 			content += "subject.{0}({1});\n".format(funcName, args );
-console.log("subject.{0}({1});\n".format(funcName, args ));
+// console.log("subject.{0}({1});\n".format(funcName, args ));
 		// }
 
 	}
 	
 	fs.appendFile('test.js', content, function (err) {
-		if (err) return // console.log(err);
-		// console.log('successfully appended "' + content + '"');
+		if (err) return // // console.log(err);
+		// // console.log('successfully appended "' + content + '"');
 	});
 }
 
@@ -209,11 +212,10 @@ function constraints(filePath)
 				operatorHashMapWithFuncName.set(funcName, new HashMap());
 			}
 
-			// console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
+			// // console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
 
 			var params = node.params.map(function(p) {return p.name});
 			functionConstraints[funcName] = {constraints:[], params: params};
-
 			// Check for expressions using argument.
 			traverse(node, function(child)
 			{
@@ -274,7 +276,7 @@ function constraints(filePath)
 				}
 			});
 
-			// // console.log( functionConstraints[funcName]);
+			// // // console.log( functionConstraints[funcName]);
 
 		}
 	});
@@ -315,10 +317,10 @@ function diffOperatorPotentialValues(child, params, buf, funcName){
 			addValToOperatorHashMap(childLeftName, val, revarseVal, funcName, expression, params);
 			break;
 	}
-// console.log("operator\t" + operator);
-// console.log("obey\t" + obey);
-// console.log("val\t" + val);
-// console.log("++++++++++++++++++++++++++");
+// // console.log("operator\t" + operator);
+// // console.log("obey\t" + obey);
+// // console.log("val\t" + val);
+// // console.log("++++++++++++++++++++++++++");
 	
 }
 
@@ -342,6 +344,7 @@ function addValToOperatorHashMap(childLeftName, val, reverseVal, funcName, expre
 	if(!operatorHashMapWithFuncName.get(funcName).has('params')){
 		operatorHashMapWithFuncName.get(funcName).set('params', params);
 	}
+	console.log(operatorHashMapWithFuncName.get(funcName).get('params'));
 }
 
 
