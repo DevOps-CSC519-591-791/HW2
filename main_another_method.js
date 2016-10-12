@@ -6,71 +6,18 @@ faker.locale = "en";
 var mock = require('mock-fs');
 var _ = require('underscore');
 var Random = require('random-js');
+var engine = Random.engines.mt19937().autoSeed();
 var S = require('string');
 var HashMap = require("hashmap");
 
-function main()
-{
-	var args = process.argv.slice(2);
 
-	if( args.length == 0 )
-	{
-		args = ["subject.js"];
-	}
-	var filePath = args[0];
-
-	var operatorArray = ['==', '!=', '>', '<'];
-	var reverseOperatorHashMap = new HashMap();
-	
-	var obeyArray = [];
-
-	var currFuncIndex = 0;
-	var hashMap = new HashMap();
-	checkInAdvanceForEachFunction(filePath, obeyArray, operatorArray, hashMap);
-	// console.log(obeyArray);
-	// // console.log(hashMap);
-	var formerCombinationNum = 0;
-
-	var content = "var subject = require('./" + filePath + "')\nvar mock = require('mock-fs');\n";
-	fs.writeFileSync('test.js', content, "utf8");
-
-	hashMap.forEach(function(value, key){
-		for(var k = 0; k < value; k++){
-			var operatorObeyArray = obeyArray[k + formerCombinationNum];
-		// console.log(operatorObeyArray);
-			var currFuncName = key;
-// // console.log("=============================================");
-// // console.log("k\t" + k);
-			functionConstraints = {}
-			constraints(filePath, operatorArray, currFuncName, operatorObeyArray, 0);
-			generateTestCases(filePath);
-		}
-		formerCombinationNum += value;
-	});
-}
-
-var engine = Random.engines.mt19937().autoSeed();
-
-function Constraint(properties)
-{
-	this.ident = properties.ident;
-	this.expression = properties.expression;
-	this.operator = properties.operator;
-	this.value = properties.value;
-	this.funcName = properties.funcName;
-	// Supported kinds: "fileWithContent","fileExists"
-	// integer, string, phoneNumber
-	this.kind = properties.kind;
-}
-
-function fakeDemo()
-{
-	// // console.log( faker.phone.phoneNumber() );
-	// // console.log( faker.phone.phoneNumberFormat() );
-	// // console.log( faker.phone.phoneFormats() );
-}
-
+//  bian liang fang main func wai mian jiu bian cheng global de le!!!!!!!!!!!!!!!!
 var functionConstraints = {}
+var operatorArray = ['==', '!=', '>', '<'];
+
+// key is different kinds of operstors (==, !=, >, <)
+// value is all potential values that can cover different statements and branches.
+var operatorHashMapWithFuncName = new HashMap();
 
 var mockFileLibrary = 
 {
@@ -86,6 +33,81 @@ var mockFileLibrary =
 		}
 	}
 };
+
+function main()
+{
+	var args = process.argv.slice(2);
+
+	if( args.length == 0 )
+	{
+		args = ["subject.js"];
+	}
+	var filePath = args[0];
+
+
+	var obeyArray = [];
+
+	var currFuncIndex = 0;
+
+	var formerCombinationNum = 0;
+
+	var content = "var subject = require('./" + filePath + "')\nvar mock = require('mock-fs');\n";
+	fs.writeFileSync('test.js', content, "utf8");
+
+	constraints(filePath);
+
+	// generate function constraints for each function
+	operatorHashMapWithFuncName.forEach(function(value, key){
+		// temporary!!!!!! value.get('params').length
+		var paramsNum = value.count() - 2;
+		numOfCombination = Math.pow(2, paramsNum);
+		functionConstraints[key].constraints = [];
+		functionConstraints[key].params = value.get('params');
+
+		for(var m = 0; m < numOfCombination; m++){
+			binaryNum = m.toString(2);
+			// Pad 0 on the right side of the string
+			var binaryString = S(binaryNum).padLeft(paramsNum, '0').replaceAll('', ',').s;
+			var binaryArray = JSON.parse("[" + binaryString + "]");
+		console.log(binaryArray);
+			for(var n = 0; n < paramsNum; n++){
+				functionConstraints[key].constraints.push( 
+					new Constraint(
+					{
+						ident: value.get('params')[n],
+						value: value.get(value.get('params')[n])[binaryArray[n]],
+						funcName: key,
+						kind: "integer",  //tag
+						operator : null,
+						expression: value.get('expression')
+					})
+				);
+			}
+			generateTestCases(filePath);
+		}
+	});
+	
+}
+
+function Constraint(properties)
+{
+	this.ident = properties.ident;
+	this.expression = properties.expression;
+	this.operator = properties.operator;
+	this.value = properties.value;
+	this.funcName = properties.funcName;
+	// Supported kinds: "fileWithContent","fileExists"
+	// integer, string, phoneNumber
+	this.kind = properties.kind;
+}
+
+function fakeDemo()
+{
+	// console.log( faker.phone.phoneNumber() );
+	// console.log( faker.phone.phoneNumberFormat() );
+	// console.log( faker.phone.phoneFormats() );
+}
+
 
 function generateTestCases(filePath)
 {
@@ -105,7 +127,6 @@ function generateTestCases(filePath)
 
 		// update parameter values based on known constraints.
 		var constraints = functionConstraints[funcName].constraints;
-// console.log(constraints);
 		// Handle global constraints...
 		var fileWithContent = _.some(constraints, {kind: 'fileWithContent' });
 		var pathExists      = _.some(constraints, {kind: 'fileExists' });
@@ -120,10 +141,10 @@ function generateTestCases(filePath)
 				params[constraint.ident] = constraint.value;
 			}
 		}
-
+console.log(params);
 		// Concatenate function arguments.
 		var args = Object.keys(params).map( function(k) {return params[k]; }).join(",");
-
+console.log(args);
 		// if( pathExists || fileWithContent )
 		// {
 		// 	content += generateMockFsTestCases(pathExists,fileWithContent,funcName, args);
@@ -137,14 +158,14 @@ function generateTestCases(filePath)
 		// {
 			// Generate simple test case.
 			content += "subject.{0}({1});\n".format(funcName, args );
-// console.log("subject.{0}({1});\n".format(funcName, args ));
+console.log("subject.{0}({1});\n".format(funcName, args ));
 		// }
 
 	}
 	
 	fs.appendFile('test.js', content, function (err) {
-		if (err) return // // console.log(err);
-		// // console.log('successfully appended "' + content + '"');
+		if (err) return // console.log(err);
+		// console.log('successfully appended "' + content + '"');
 	});
 }
 
@@ -173,49 +194,10 @@ function generateMockFsTestCases (pathExists,fileWithContent,funcName,args)
 	return testCase;
 }
 
-function checkInAdvanceForEachFunction(filePath, obeyArray, operatorArray, hashMap){
-	var buf = fs.readFileSync(filePath, "utf8");
-	var result = esprima.parse(buf, options);
-	traverse(result, function (node) 
-	{
-		if (node.type === 'FunctionDeclaration') 
-		{
-			// store funcName in array
-			var funcName = functionName(node);
-			var targetOperatorNum = 0;
-			var params = node.params.map(function(p) {return p.name});
-			// Check for expressions using argument.
-			traverse(node, function(child)
-			{
-				if(child.type === 'BinaryExpression' && operatorArray.indexOf(child.operator) > -1)
-				{
-					//count target operator number in each function
-					targetOperatorNum++;
-				}
-			});
-
-			numOfCombination = Math.pow(2, targetOperatorNum);
-			// insert funName and # of combination according to the # of target operators
-			// into hashMap
-			hashMap.set(funcName, numOfCombination);
-
-			for(var m = 0; m < numOfCombination; m++){
-				binaryNum = m.toString(2);
-				// Pad 0 on the right side of the string
-				var binaryString = S(binaryNum).padLeft(targetOperatorNum, '0').replaceAll('', ',').s;
-				var binaryArray = JSON.parse("[" + binaryString + "]");
-				obeyArray.push(binaryArray);
-			}
-			//// // console.log(obeyArray);
-		}
-	});
-}
-
-function constraints(filePath, operatorArray, currFuncName, operatorObeyArray, operatorObeyArrayIndex)
+function constraints(filePath)
 {
     var buf = fs.readFileSync(filePath, "utf8");
 	var result = esprima.parse(buf, options);
-	var diffString = '';
 	traverse(result, function (node) 
 	{
 		// '===', strict equal, returns true if the operands are equal and of the same type.
@@ -223,11 +205,11 @@ function constraints(filePath, operatorArray, currFuncName, operatorObeyArray, o
 		if (node.type === 'FunctionDeclaration') 
 		{
 			var funcName = functionName(node);
-			if(funcName != currFuncName){
-				return;
+			if(!operatorHashMapWithFuncName.has(funcName)){
+				operatorHashMapWithFuncName.set(funcName, new HashMap());
 			}
 
-			// // console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
+			// console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
 
 			var params = node.params.map(function(p) {return p.name});
 			functionConstraints[funcName] = {constraints:[], params: params};
@@ -235,49 +217,14 @@ function constraints(filePath, operatorArray, currFuncName, operatorObeyArray, o
 			// Check for expressions using argument.
 			traverse(node, function(child)
 			{
-
-				
-				if( child.type == "CallExpression" && 
-					 child.callee.property &&
-					 child.callee.property.name =="indexOf" )
-				{
-					var expression = buf.substring(child.range[0], child.range[1]);
-
-					for( var p =0; p < params.length; p++ )
-					{
-						if( child.callee.object.name == params[p] )
-						{
-							diffString = child.arguments[0].value;
-					//console.log(diffString);
-							functionConstraints[funcName].constraints.push( 
-							new Constraint(
-							{
-								ident: params[p],
-								value:  child.arguments[0].value,
-								funcName: currFuncName,
-								kind: "integer",
-								operator : "==",
-								expression: expression
-							}));
-						}
-					}
-				}
-
 				//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 				if(child.type === 'BinaryExpression' && operatorArray.indexOf(child.operator) > -1)
 				{
 					if(child.left.type == 'Identifier' && params.indexOf( child.left.name ) > -1)
 					{
-						// // // console.log(child.operator);
-						
-				// // console.log("operatorObeyArrayIndex\t" + operatorObeyArrayIndex);
-				// // console.log("Obey\t" + operatorObeyArray[operatorObeyArrayIndex]);
-						constraintWithDiffOperator(child, params, buf, funcName, operatorObeyArray[operatorObeyArrayIndex], diffString);
-						operatorObeyArrayIndex++;
+						diffOperatorPotentialValues(child, params, buf, funcName);
 					}
 				}
-
-				
 
 				if( child.type == "CallExpression" && 
 					 child.callee.property &&
@@ -327,51 +274,76 @@ function constraints(filePath, operatorArray, currFuncName, operatorObeyArray, o
 				}
 			});
 
-			// // // console.log( functionConstraints[funcName]);
+			// // console.log( functionConstraints[funcName]);
 
 		}
 	});
 }
 
-function constraintWithDiffOperator(child, params, buf, funcName, obey, diffString){
+function diffOperatorPotentialValues(child, params, buf, funcName){
 	var operator = child.operator;
-
+	var childLeftName = child.left.name;
 	// get expression from original source code:
 	var expression = buf.substring(child.range[0], child.range[1]);
 	var rightHand = buf.substring(child.right.range[0], child.right.range[1])
 
-	if((operator == "==" && obey == 1) || (operator == "!=" && obey == 0)){
-		var val = rightHand;
+	var val = '';
+	var revarseVal = '';
+	switch(operator){
+		case "==":
+			val = rightHand;
+			// add "!=" value
+			revarseVal = JSON.stringify(Random.string()(engine, 11));
+			addValToOperatorHashMap(childLeftName, val, revarseVal, funcName, expression, params);
+			break;
+		case "!=":
+			val = "\"" + rightHand.replace(/["]+/g, '') + "Diff\"";
+			// add "==" value
+			revarseVal = rightHand;
+			addValToOperatorHashMap(childLeftName, val, revarseVal, funcName, expression, params);
+			break;
+		case ">":
+			val = (parseInt(rightHand) + 1) + "";
+			// add "<=" value
+			revarseVal = parseInt(rightHand) + "";
+			addValToOperatorHashMap(childLeftName, val, revarseVal, funcName, expression, params);
+			break;
+		case "<":
+			val = (parseInt(rightHand) - 1) + "";
+			// add ">=" value
+			revarseVal = parseInt(rightHand) + "";
+			addValToOperatorHashMap(childLeftName, val, revarseVal, funcName, expression, params);
+			break;
 	}
-	else if((operator == "==" && obey == 0) || (operator == "!=" && obey == 1)){
-		// JSON.stringify() converts plain output to string
-		var potentialValueArr = [];
-		potentialValueArr.push(JSON.stringify(Random.string()(engine, 11)));
-		potentialValueArr.push(JSON.stringify(diffString));
-
-		var val = potentialValueArr[Random.integer(0, 1)(engine)];
-	}
-	if((operator == "<" && obey == 1) || (operator == ">" && obey == 0)){
-		var val = (parseInt(rightHand) - 1) + "";
-	}
-	else if((operator == "<" && obey == 0) || (operator == ">" && obey == 1)){
-		var val = (parseInt(rightHand) + 1) + "";
-	}
-// // console.log("operator\t" + operator);
-// // console.log("obey\t" + obey);
-// // console.log("val\t" + val);
-// // console.log("++++++++++++++++++++++++++");
-	functionConstraints[funcName].constraints.push( 
-		new Constraint(
-		{
-			ident: child.left.name,
-			value: val,
-			funcName: funcName,
-			kind: "integer",  //tag
-			operator : child.operator,
-			expression: expression
-		}));
+// console.log("operator\t" + operator);
+// console.log("obey\t" + obey);
+// console.log("val\t" + val);
+// console.log("++++++++++++++++++++++++++");
+	
 }
+
+function addValToOperatorHashMap(childLeftName, val, reverseVal, funcName, expression, params){
+	var temp_arr = [];
+	if(operatorHashMapWithFuncName.get(funcName).has(childLeftName)){
+		temp_arr = operatorHashMapWithFuncName.get(funcName).get(childLeftName);
+	}
+	if(temp_arr.indexOf(val) == -1){
+		temp_arr.push(val);
+	}
+	if(temp_arr.indexOf(reverseVal) == -1){
+		temp_arr.push(reverseVal);
+	}
+	operatorHashMapWithFuncName.get(funcName).set(childLeftName, temp_arr);
+	// add expression info into hash
+	if(!operatorHashMapWithFuncName.get(funcName).has('expression')){
+		operatorHashMapWithFuncName.get(funcName).set('expression', expression);
+	}
+	// add params info into hash
+	if(!operatorHashMapWithFuncName.get(funcName).has('params')){
+		operatorHashMapWithFuncName.get(funcName).set('params', params);
+	}
+}
+
 
 function traverse(object, visitor) 
 {
