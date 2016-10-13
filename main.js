@@ -157,8 +157,7 @@ function generateTestCases(filePath)
 	}
 	
 	fs.appendFile('test.js', content, function (err) {
-		if (err) return // // console.log(err);
-		// // console.log('successfully appended "' + content + '"');
+		if (err) return console.log(err);
 	});
 }
 
@@ -257,7 +256,7 @@ function constraints(filePath, operatorArray, currFuncName, operatorObeyArray, o
 				return;
 			}
 			
-			// // console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
+			console.log("Line : {0} Function: {1}".format(node.loc.start.line, funcName ));
 
 			var params = node.params.map(function(p) {return p.name});
 			functionConstraints[funcName] = {constraints:[], params: params};
@@ -276,7 +275,6 @@ function constraints(filePath, operatorArray, currFuncName, operatorObeyArray, o
 						if( child.callee.object.name == params[p] )
 						{
 							diffString = child.arguments[0].value;
-					//console.log(diffString);
 							functionConstraints[funcName].constraints.push( 
 								new Constraint(
 								{
@@ -367,7 +365,7 @@ function constraints(filePath, operatorArray, currFuncName, operatorObeyArray, o
 				}
 			});
 
-			// // // console.log( functionConstraints[funcName]);
+			console.log( functionConstraints[funcName]);
 
 		}
 	});
