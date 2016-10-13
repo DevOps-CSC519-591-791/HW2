@@ -381,7 +381,9 @@ function constraintWithDiffOperator(child, params, buf, funcName, obey, diffStri
 	var rightHand = buf.substring(child.right.range[0], child.right.range[1])
 
 	if((operator == "==" && obey == 1) || (operator == "!=" && obey == 0)){
-		equalStringArr.push(rightHand);
+		if(funcName == "weird"){
+			equalStringArr.push(rightHand);
+		}
 		if(child.left.name == "area"){
 			var val = JSON.stringify(faker.phone.phoneNumberFormat()).substr(-10);
 			val = rightHand.slice(0, -1) + val;
