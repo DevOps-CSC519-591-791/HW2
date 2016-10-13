@@ -140,14 +140,17 @@ function generateTestCases(filePath)
 
 		if( pathExists || fileWithContent )
 		{
-			content += generateMockFsTestCases(pathExists, pathWithFile, fileNotExist, fileWithContent,funcName, args);
 			content += generateMockFsTestCases(!pathExists, pathWithFile, fileNotExist, fileWithContent,funcName, args);
 			content += generateMockFsTestCases(!pathExists, pathWithFile, !fileNotExist, fileWithContent,funcName, args);
+			content += generateMockFsTestCases(!pathExists, pathWithFile, !fileNotExist, !fileWithContent,funcName, args);
 			// Bonus...generate constraint variations test cases....
-			content += generateMockFsTestCases(pathExists,!pathWithFile,fileNotExist, fileWithContent,funcName, args);
+			content += generateMockFsTestCases(pathExists,pathWithFile,fileNotExist, fileWithContent,funcName, args);
 			content += generateMockFsTestCases(pathExists,pathWithFile,!fileNotExist, fileWithContent,funcName, args);
-			content += generateMockFsTestCases(pathExists,pathWithFile,fileNotExist, !fileWithContent,funcName, args);
-			content += generateMockFsTestCases(!pathExists,!pathWithFile,fileNotExist, !fileWithContent,funcName, args);
+			content += generateMockFsTestCases(pathExists,pathWithFile,!fileNotExist, !fileWithContent,funcName, args);
+			
+			content += generateMockFsTestCases(pathExists,!pathWithFile,fileNotExist, fileWithContent,funcName, args);
+			content += generateMockFsTestCases(pathExists,!pathWithFile,!fileNotExist, fileWithContent,funcName, args);
+			content += generateMockFsTestCases(pathExists,!pathWithFile,!fileNotExist, !fileWithContent,funcName, args);
 		}
 		else
 		{
@@ -168,7 +171,7 @@ function generateMockFsTestCases (pathExists,pathWithFile,fileNotExist, fileWith
 	var testCase = "";
 	// Build mock file system based on constraints.
 	var mergedFS = {};
-	if( !pathExists )
+	if( pathExists )
 	{
 		for (var attrname in mockFileLibrary.pathExists) { mergedFS[attrname] = mockFileLibrary.pathExists[attrname]; }
 	}
